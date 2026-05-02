@@ -17,6 +17,9 @@ export function loadDashboard(userId) {
         const euName = document.getElementById('eu-name');
         if (euName) euName.value = user.displayName || '';
 
+        const euEmail = document.getElementById('eu-email');
+        if (euEmail) euEmail.value = user.email || '';
+
         const euPhone = document.getElementById('eu-phone');
         if (euPhone) euPhone.value = user.phone || '';
     }
@@ -265,11 +268,11 @@ function renderChart(targetProfiles) {
                 }
             },
             scales: {
-                x: { 
+                x: {
                     grid: { color: 'rgba(0, 0, 0, 0.04)' },
                     ticks: { font: { family: "'Inter', sans-serif" } }
                 },
-                y: { 
+                y: {
                     beginAtZero: true,
                     border: { display: false },
                     grid: { color: 'rgba(0, 0, 0, 0.04)', drawTicks: false },

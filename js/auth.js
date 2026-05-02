@@ -6,14 +6,14 @@ import { loadDashboard } from './dashboard.js';
 export function setupAuth() {
     const loginForm = document.getElementById('login-form');
     const signupForm = document.getElementById('signup-form');
-    
+
     // Switch forms
     document.getElementById('show-signup').addEventListener('click', (e) => {
         e.preventDefault();
         loginForm.classList.add('hidden');
         signupForm.classList.remove('hidden');
     });
-    
+
     document.getElementById('show-login').addEventListener('click', (e) => {
         e.preventDefault();
         signupForm.classList.add('hidden');
@@ -50,7 +50,12 @@ export function setupAuth() {
                 }
             }
         } catch (error) {
-            AppUI.showToast(error.message || 'Login failed', 'error');
+            let msg = error.message || 'Login failed';
+            if (msg.includes('auth/invalid-credential')) msg = 'Invalid email or password.';
+            if (msg.includes('auth/user-not-found')) msg = 'No account found with this email.';
+            if (msg.includes('auth/wrong-password')) msg = 'Incorrect password.';
+            if (msg.includes('auth/network-request-failed')) msg = 'Network error. Please check your connection.';
+            AppUI.showToast(msg, 'error');
         } finally {
             btn.textContent = origText;
             btn.disabled = false;
@@ -64,7 +69,7 @@ export function setupAuth() {
         const email = document.getElementById('signup-email').value;
         const phone = document.getElementById('signup-phone').value;
         const password = document.getElementById('signup-password').value;
-        
+
         const btn = signupForm.querySelector('button');
         const origText = btn.textContent;
         btn.textContent = 'Creating account...';
@@ -74,8 +79,8 @@ export function setupAuth() {
             if (isFirebaseInitialized && navigator.onLine) {
                 const userCredential = await createUserWithEmailAndPassword(auth, email, password);
                 await updateProfile(userCredential.user, { displayName: name });
-                
-                handleLoginSuccess({
+
+                await handleLoginSuccess({
                     uid: userCredential.user.uid,
                     email,
                     displayName: name,
@@ -89,10 +94,15 @@ export function setupAuth() {
                     displayName: name,
                     phone
                 };
-                handleLoginSuccess(mockUser);
+                await handleLoginSuccess(mockUser);
             }
         } catch (error) {
-            AppUI.showToast(error.message || 'Signup failed', 'error');
+            let msg = error.message || 'Signup failed';
+            if (msg.includes('auth/email-already-in-use')) msg = 'An account already exists with this email.';
+            if (msg.includes('auth/invalid-email')) msg = 'Please enter a valid email address.';
+            if (msg.includes('auth/weak-password')) msg = 'Password should be at least 6 characters.';
+            if (msg.includes('auth/network-request-failed')) msg = 'Network error. Please check your connection.';
+            AppUI.showToast(msg, 'error');
         } finally {
             btn.textContent = origText;
             btn.disabled = false;
@@ -146,11 +156,17 @@ export function checkAuthState() {
     }
 }
 
-function handleLoginSuccess(user) {
+async function handleLoginSuccess(user) {
     Store.setUser(user);
-    document.getElementById('teacher-name').textContent = user.displayName;
+
+    if (isFirebaseInitialized && navigator.onLine) {
+        await Store.syncFromFirebase(user.uid);
+    }
+
+    const updatedUser = Store.getUser() || user;
+    document.getElementById('teacher-name').textContent = updatedUser.displayName;
     AppUI.switchView('dashboard-view');
-    
+
     // Trigger sync immediately upon login
     Store.triggerSync();
 }

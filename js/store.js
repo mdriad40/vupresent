@@ -5,7 +5,7 @@ const PREFIX = 'vu_';
 export const Store = {
     // Generates unique ID
     uuid() {
-        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
             var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
             return v.toString(16);
         });
@@ -27,7 +27,8 @@ export const Store = {
         if (user) {
             user = { ...user, ...updates };
             this.setUser(user);
-            
+            this.triggerSync();
+
             // Also update Firebase profile info if possible
             if (navigator.onLine && isFirebaseInitialized) {
                 import('./firebase-config.js').then(({ auth, updateProfile }) => {
@@ -65,7 +66,7 @@ export const Store = {
         if (!profile.id) profile.id = this.uuid();
         profile.createdAt = profile.createdAt || new Date().toISOString();
         profile.synced = false;
-        
+
         const profiles = this.getProfiles(userId);
         const idx = profiles.findIndex(p => p.id === profile.id);
         if (idx >= 0) {
@@ -90,11 +91,11 @@ export const Store = {
         let profiles = this.getProfiles(userId);
         profiles = profiles.filter(p => p.id !== profileId);
         localStorage.setItem(PREFIX + 'profiles_' + userId, JSON.stringify(profiles));
-        
+
         // Remove locally related students and attendance
         localStorage.removeItem(PREFIX + 'students_' + profileId);
         localStorage.removeItem(PREFIX + 'attendance_' + profileId);
-        
+
         // Queue delete to Firebase
         this.queueDelete(`users/${userId}/course/${profileId}`);
         this.queueDelete(`users/${userId}/course-history/${profileId}`);
@@ -124,7 +125,7 @@ export const Store = {
         let students = this.getStudents(profileId);
         students = students.filter(s => s.id !== studentId);
         localStorage.setItem(PREFIX + 'students_' + profileId, JSON.stringify(students));
-        
+
         const user = this.getUser();
         if (user) {
             this.queueDelete(`users/${user.uid}/course-history/${profileId}/students/${studentId}`);
@@ -139,16 +140,16 @@ export const Store = {
     saveAttendanceSession(profileId, date, records) {
         const attendance = this.getAttendance(profileId);
         const existingIdx = attendance.findIndex(a => a.date === date);
-        
+
         const session = { date, records, synced: false, updatedAt: new Date().toISOString() };
-        
+
         if (existingIdx >= 0) {
             attendance[existingIdx] = session;
         } else {
             attendance.push(session);
             attendance.sort((a, b) => new Date(a.date) - new Date(b.date));
         }
-        
+
         localStorage.setItem(PREFIX + 'attendance_' + profileId, JSON.stringify(attendance));
         this.triggerSync();
         return session;
@@ -164,15 +165,57 @@ export const Store = {
         session.records[studentId] = status;
         session.synced = false;
         session.updatedAt = new Date().toISOString();
-        
+
         localStorage.setItem(PREFIX + 'attendance_' + profileId, JSON.stringify(attendance));
         this.triggerSync();
     },
 
     // Sync Logic
+    async syncFromFirebase(userId) {
+        if (!navigator.onLine || !isFirebaseInitialized) return;
+        try {
+            const snapshot = await get(child(ref(db), `users/${userId}`));
+            if (snapshot.exists()) {
+                const data = snapshot.val();
+                
+                // Restore User Info
+                if (data.user_info) {
+                    const localUser = this.getUser() || {};
+                    this.setUser({ ...localUser, ...data.user_info });
+                }
+                
+                // Restore Profiles
+                if (data.course) {
+                    const profiles = Object.values(data.course);
+                    localStorage.setItem(PREFIX + 'profiles_' + userId, JSON.stringify(profiles));
+                }
+                
+                // Restore Students & Attendance
+                if (data['course-history']) {
+                    const courseHistory = data['course-history'];
+                    for (const profileId in courseHistory) {
+                        const history = courseHistory[profileId];
+                        
+                        if (history.students) {
+                            const students = Object.values(history.students);
+                            localStorage.setItem(PREFIX + 'students_' + profileId, JSON.stringify(students));
+                        }
+                        
+                        if (history.attendance) {
+                            const attendance = Object.values(history.attendance);
+                            localStorage.setItem(PREFIX + 'attendance_' + profileId, JSON.stringify(attendance));
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            console.error("Failed to sync from Firebase:", error);
+        }
+    },
+
     async triggerSync() {
         if (!navigator.onLine || !isFirebaseInitialized) return;
-        
+
         const user = this.getUser();
         if (!user) return;
 
@@ -189,7 +232,7 @@ export const Store = {
             deleteQueue.forEach(path => {
                 updates[path] = null;
             });
-            
+
             // Sync User Info Always
             updates[`users/${user.uid}/user_info`] = {
                 uid: user.uid,
@@ -274,9 +317,9 @@ export const Store = {
         } catch (e) {
             console.error("Firebase sync failed! Data remains marked as un-synced for next attempt.", e);
             if (e.message && e.message.includes('permission_denied')) {
-                import('./app.js').then(({AppUI}) => AppUI.showToast("Database Permission Denied! Check your Firebase Rules.", "error"));
+                import('./app.js').then(({ AppUI }) => AppUI.showToast("Database Permission Denied! Check your Firebase Rules.", "error"));
             } else {
-                import('./app.js').then(({AppUI}) => AppUI.showToast("Firebase Error: " + e.message, "error"));
+                import('./app.js').then(({ AppUI }) => AppUI.showToast("Firebase Error: " + e.message, "error"));
             }
         }
     }

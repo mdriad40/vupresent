@@ -238,7 +238,7 @@
 
                     <!-- Flow 1: Class Report -->
                     <div id="flow-class-report" class="report-flow active">
-                        <div class="card" style="max-width: 800px;">
+                        <div class="card" style="margin-bottom: 1.5rem;">
                             <div class="section-header" style="margin-bottom: 1.5rem;">
                                 <h2>Export Class Attendance</h2>
                                 <p class="subtitle">Download complete attendance sheets for an entire class.</p>
@@ -289,7 +289,7 @@
 
                     <!-- Flow: Defaulters Report -->
                     <div id="flow-defaulters-report" class="report-flow">
-                        <div class="card" style="margin-bottom: 1.5rem; max-width: 800px;">
+                        <div class="card" style="margin-bottom: 1.5rem;">
                             <div class="section-header" style="margin-bottom: 1.5rem;">
                                 <h2>Filter Defaults (< %)</h2>
                                         <p class="subtitle">Quickly identify students falling below a specific
@@ -587,7 +587,7 @@
                 <div class="content-wrapper">
                     <div class="section-header" style="margin-bottom: 2rem;">
                         <h2>Application Preferences</h2>
-                        <p class="subtitle">Customize your attendance tracking and reporting logic.</p>
+                        <p class="subtitle"></p>
                     </div>
 
                     <div class="card" style="max-width: 600px; margin-bottom: 1.5rem;">
@@ -796,6 +796,12 @@
                 <div class="form-group">
                     <label>Full Name *</label>
                     <input type="text" id="eu-name" required>
+                </div>
+                <div class="form-group">
+                    <label>Email Address</label>
+                    <input type="email" id="eu-email" class="form-control" readonly
+                        style="background-color: var(--bg-main); cursor: not-allowed; color: var(--text-muted);"
+                        title="Email cannot be changed">
                 </div>
                 <div class="form-group">
                     <label>Phone Number *</label>
